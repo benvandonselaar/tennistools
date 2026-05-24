@@ -1,0 +1,165 @@
+---
+title: "Aan de slag met tennistools"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Aan de slag met tennistools}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(tennistools)
+```
+
+## Introductie
+
+**tennistools** is een R package met hulpfuncties voor tennissers, coaches en
+toernooiorganisatoren. De package bevat vier functies:
+
+- `call_score()` — zet ruwe puntstanden om naar officiële tennistaal
+- `is_set_won()` — controleert of een set afgelopen is
+- `make_training_groups()` — verdeelt spelers eerlijk in trainingsgroepjes
+- `generate_round_robin()` — maakt een compleet speelschema waarbij iedereen
+  tegen elkaar speelt
+
+---
+
+## `call_score()` — Puntstand omzetten naar tennistaal
+
+In tennis worden punten niet "1, 2, 3" genoemd maar "fifteen, thirty, forty".
+Daarnaast zijn er speciale situaties zoals deuce en advantage. `call_score()`
+neemt het aantal gewonnen punten van de server en de receiver en geeft de
+officiële uitroep terug.
+
+```{r}
+call_score(0, 0)  # begin van een game
+call_score(1, 0)  # na het eerste punt
+call_score(1, 2)  # fifteen, thirty
+call_score(3, 0)  # forty, love
+```
+
+Bij gelijkstand op 3-3 volgt deuce:
+
+```{r}
+call_score(3, 3)  # deuce
+call_score(4, 3)  # advantage server
+call_score(3, 4)  # advantage receiver
+```
+
+En zodra een speler twee punten voorstaat vanaf deuce:
+
+```{r}
+call_score(4, 2)  # game server
+call_score(2, 4)  # game receiver
+```
+
+---
+
+## `is_set_won()` — Is de set afgelopen?
+
+Een set is gewonnen bij 6 games met minimaal 2 verschil, bij 7-5, of bij 7-6
+na een tiebreak. `is_set_won()` geeft `TRUE` terug als de set klaar is en
+`FALSE` als er nog gespeeld moet worden.
+
+```{r}
+is_set_won(6, 4)  # TRUE  — gewone setwinst
+is_set_won(6, 0)  # TRUE  — bagel
+is_set_won(7, 5)  # TRUE  — na 6-5 bijgespeeld
+is_set_won(7, 6)  # TRUE  — tiebreak gewonnen
+```
+
+Situaties waarbij de set nog niet klaar is:
+
+```{r}
+is_set_won(5, 4)  # FALSE — nog niet op 6
+is_set_won(6, 5)  # FALSE — moet nog 7-5 of tiebreak worden
+is_set_won(6, 6)  # FALSE — tiebreak moet nog gespeeld worden
+```
+
+---
+
+## `make_training_groups()` — Spelers in groepjes verdelen
+
+Voor een training wil je spelers eerlijk verdelen. Zonder niveaus worden
+spelers willekeurig ingedeeld:
+
+```{r}
+spelers <- c("Jan", "Piet", "Kees", "Greetje", "Joke", "Herma")
+
+make_training_groups(spelers, group_size = 3, seed = 42)
+```
+
+Als je de niveaus van de spelers weet, gebruik dan het `levels` argument.
+De functie gebruikt een snake-draft: de sterkste speler gaat naar groep 1,
+de op-één-na-sterkste naar groep 2, enzovoort. Zo krijgt elke groep een
+eerlijke mix.
+
+```{r}
+niveaus <- c(9, 4, 8, 5, 7, 6)  # hetzelfde als de volgorde van 'spelers'
+
+make_training_groups(spelers, group_size = 3, levels = niveaus)
+```
+
+---
+
+## `generate_round_robin()` — Iedereen tegen iedereen
+
+Bij een pouletoernooi speelt iedereen één keer tegen iedereen. `generate_round_robin()`
+maakt een compleet schema via de circle method. Het resultaat is een data frame
+met kolommen `round`, `match`, `player_1`, `player_2` en `bye`.
+
+```{r}
+generate_round_robin(c("Jan", "Piet", "Kees", "Greetje"), seed = 1)
+```
+
+Bij een oneven aantal spelers wordt automatisch een bye toegevoegd:
+
+```{r}
+generate_round_robin(c("Jan", "Piet", "Kees"), shuffle = FALSE)
+```
+
+---
+
+## Functies combineren: van aanmelding tot speelschema
+
+Hieronder een volledig voorbeeld waarbij alle vier de functies samenwerken.
+Stel: je organiseert een trainingsavond met 6 spelers. Je verdeelt ze eerst in
+groepen op basis van niveau, en genereert daarna per groep een round-robin
+schema.
+
+```{r}
+spelers <- c("Jan", "Piet", "Kees", "Greetje", "Joke", "Herma")
+niveaus <- c(9, 4, 8, 5, 7, 6)
+
+# Stap 1: verdeel in groepen van 3
+groepen <- make_training_groups(spelers, group_size = 3, levels = niveaus)
+groepen
+
+# Stap 2: maak per groep een speelschema
+schema_groep1 <- generate_round_robin(groepen[["Group 1"]], seed = 1)
+schema_groep2 <- generate_round_robin(groepen[["Group 2"]], seed = 1)
+
+cat("=== Schema Groep 1 ===\n")
+print(schema_groep1)
+
+cat("\n=== Schema Groep 2 ===\n")
+print(schema_groep2)
+```
+
+Tijdens de wedstrijden kun je `call_score()` gebruiken voor de puntstand en
+`is_set_won()` om bij te houden wanneer een set afgelopen is:
+
+```{r}
+# Halverwege een game: 40-15
+call_score(3, 1)
+
+# Is de set klaar bij stand 6-3?
+is_set_won(6, 3)
+```
