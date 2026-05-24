@@ -18,7 +18,10 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of tennistools is to ...
+The goal of tennistools is to make working with tennis data a little easier.
+It provides helper functions for score calling, set validation, training group
+division, and round-robin schedule generation — useful for coaches, players,
+and anyone organising a tennis tournament.
 
 ## Installation
 
@@ -29,27 +32,68 @@ You can install the development version of tennistools from [GitHub](https://git
 devtools::install_github("benvandonselaar/tennistools")
 ```
 
-## Example
+## Usage
 
-This is a basic example which shows you how to solve a common problem:
+### `call_score()`
 
-```{r example}
+A common need during a match is translating raw point counts into the official
+tennis score call. `call_score()` handles all standard situations: opening,
+normal points, deuce, advantage, and game.
+
+```{r}
 library(tennistools)
-## basic example code
+
+call_score(0, 0)   # start of a game
+call_score(1, 2)   # fifteen, thirty
+call_score(3, 3)   # deuce
+call_score(4, 3)   # advantage server
+call_score(4, 1)   # game server
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
+### `is_set_won()`
 
-```{r cars}
-summary(cars)
+To check whether a set is finished, use `is_set_won()`. It follows standard
+ATP/WTA rules, including the 7-5 and tiebreak (7-6) edge cases.
+
+```{r}
+is_set_won(6, 4)   # TRUE
+is_set_won(7, 6)   # TRUE  — tiebreak
+is_set_won(6, 5)   # FALSE — not yet decided
+is_set_won(6, 6)   # FALSE — tiebreak still to be played
 ```
 
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this.
+### `make_training_groups()`
 
-You can also embed plots, for example:
+Dividing players into balanced groups is a recurring task for coaches.
+`make_training_groups()` accepts a vector of player names and an optional
+skill level per player. When levels are provided, a snake-draft ensures
+every group gets a fair mix of strong and weaker players.
 
-```{r pressure, echo = FALSE}
-plot(pressure)
+```{r}
+players <- c("Jan", "Piet", "Kees", "Greetje", "Joke", "Herma")
+levels  <- c(9, 4, 8, 5, 7, 6)
+
+make_training_groups(players, group_size = 3, levels = levels)
 ```
 
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
+Without levels, players are shuffled randomly. Use `seed` for reproducibility:
+
+```{r}
+make_training_groups(players, group_size = 3, seed = 42)
+```
+
+### `generate_round_robin()`
+
+To make sure everyone plays against everyone, `generate_round_robin()` builds
+a complete schedule using the circle method. It works with any number of
+players; if the count is odd, a bye is added automatically.
+
+```{r}
+generate_round_robin(c("Jan", "Piet", "Greetje"), shuffle = FALSE)
+```
+
+Use `seed` to get the same randomised draw every time:
+
+```{r}
+generate_round_robin(c("Jan", "Piet", "Kees", "Greetje"), seed = 7)
+```
